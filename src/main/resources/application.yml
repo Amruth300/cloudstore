@@ -1,0 +1,91 @@
+spring:
+  application:
+    name: cloud-file-storage
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/cloudstore}
+    username: ${DB_USERNAME:cloudstore}
+    password: ${DB_PASSWORD:cloudstore}
+    hikari:
+      maximum-pool-size: 10
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+    consumer:
+      group-id: cloudstore-audit
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.cloudstore.event"
+
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 105MB
+
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never
+
+app:
+  jwt:
+    # NEVER commit a real secret. Supplied via JWT_SECRET env var / secret manager at runtime.
+    secret: ${JWT_SECRET:change-this-development-only-secret-please-override-me-1234567890}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
+  gcs:
+    bucket-name: ${GCS_BUCKET_NAME:cloudstore-dev-bucket}
+    # Optional resource path (classpath:/file:) to a service-account JSON mounted at runtime.
+    # Leave unset to use GOOGLE_APPLICATION_CREDENTIALS / Application Default Credentials instead.
+    credentials-location: ${GCS_CREDENTIALS_LOCATION:}
+    signed-url-expiry-minutes: ${GCS_SIGNED_URL_EXPIRY_MINUTES:15}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    root: INFO
+    com.cloudstore: INFO
+    org.hibernate.SQL: WARN
+  # Sanitized logging: never log Authorization headers, passwords, or GCS credentials.
